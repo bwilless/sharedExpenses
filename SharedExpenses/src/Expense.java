@@ -4,23 +4,18 @@ import java.util.Date;
 
 public class Expense implements Serializable {
 
-	/**
-	 * 
-	 */
-	private static final long serialVersionUID = -2006051151469014671L;
+	private Date date;
+	private String guest;
 	private String expenseType;
 	private double cost;
-	private String guest;
-	private Date date;
 	private String note;
 	
-	
 	// Constructor
-	public Expense (String expenseType, double cost, String guest, Date date, String note) {
+	public Expense (Date date, String guest, String expenseType, double cost, String note) {
+		this.date = date;
+		this.guest = guest;
 		this.expenseType = expenseType;
 		this.cost = cost;
-		this.guest = guest;
-		this.date = date;
 		this.note = note;
 	}
 
@@ -47,6 +42,18 @@ public class Expense implements Serializable {
 	}
 	
 	// Getters
+
+	public Object getExpenseData(int index) {
+		
+		switch(index) {
+		case 0: return date;
+		case 1: return guest;
+		case 2: return expenseType;
+		case 3: return cost;
+		case 4: return note;
+		default: return null;
+		}
+	}
 	
 	public String setExpenseType() {
 		return expenseType;

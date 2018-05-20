@@ -1,5 +1,6 @@
 
 import java.awt.BorderLayout;
+import java.awt.Dimension;
 import java.awt.GridLayout;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
@@ -24,10 +25,8 @@ public class SharedExpensesApp {
 	JFrame addExpenseFrame; 
 	JTextField guestText, expenseTypeText, costText, dateText, noteText;
 	JFormattedTextField dateInput;
-	
-	
-	ArrayList<Guest> guestList;
-	ArrayList<Expense> expenseList;
+		
+	JTable expenseTable;
 	
 	File currentFile = null;
 	
@@ -39,10 +38,6 @@ public class SharedExpensesApp {
 	
 	// Main worker function
 	public void go() {
-
-		// Instantiate the data lists for the tracker
-		guestList = new ArrayList<Guest>();
-		expenseList = new ArrayList<Expense>();
 		
 		// Create all the buttons for the Button Panel
 		newTrackerButton = new JButton("New Tracker");
@@ -55,6 +50,15 @@ public class SharedExpensesApp {
 		// Create the main Swing frame
 		frame = new JFrame("Shared Expense Tracker");
 		frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+		
+		// Create the expense table
+		expenseTable = new JTable(new SharedExpenseTableModel());
+		expenseTable.setPreferredScrollableViewportSize(new Dimension(650, 550));
+		expenseTable.setFillsViewportHeight(true);
+		
+		// Create a scrolling JPanel for the expense table
+		JScrollPane expensePane = new JScrollPane(expenseTable);
+		frame.add(expensePane);
 		
 		// Create the button panel
 		buttonPanel = new JPanel();
@@ -95,7 +99,6 @@ public class SharedExpensesApp {
 			JFileChooser fileChooser = new JFileChooser();
 			File newFile = null;
 			
-			
 			while (newFile == null) {
 				
 				fileChooser.setDialogTitle("Please specify the file open");
@@ -109,11 +112,14 @@ public class SharedExpensesApp {
 				
 				FileInputStream fileInputStream = new FileInputStream(currentFile);
 				ObjectInputStream inputStream = new ObjectInputStream(fileInputStream);
-				expenseList = (ArrayList<Expense>) (inputStream.readObject());
+				ExpenseData.getInstance().setExpenseArray((ArrayList<Expense>) (inputStream.readObject()));
+				inputStream.close();
+				
 				
 			} catch (Exception ex) {
 				ex.printStackTrace();
 			}
+
 			
 		}
 	}
@@ -146,7 +152,7 @@ public class SharedExpensesApp {
 				
 				FileOutputStream fileOutputStream = new FileOutputStream(currentFile);
 				ObjectOutputStream outputStream = new ObjectOutputStream(fileOutputStream);
-				outputStream.writeObject(expenseList);
+				outputStream.writeObject(ExpenseData.getInstance().getExpenseArray());
 				outputStream.close();
 				
 				if(!newFile) {
@@ -237,10 +243,10 @@ public class SharedExpensesApp {
 			System.out.println(expenseTypeText.getText() + " " +  Double.parseDouble(costText.getText()) + " " + 
 			           guestText.getText() + " " + dateField + " " + noteText.getText());
 				
-			Expense newExpense = new Expense(expenseTypeText.getText(), Double.parseDouble(costText.getText()), 
-					                         guestText.getText(), dateField, noteText.getText());
+			Expense newExpense = new Expense(dateField, guestText.getText(), expenseTypeText.getText(), 
+											 Double.parseDouble(costText.getText()), noteText.getText());
 			
-			expenseList.add(newExpense);
+			ExpenseData.getInstance().getExpenseArray().add(newExpense);
 			addExpenseFrame.setVisible(false);
 		}
 	}

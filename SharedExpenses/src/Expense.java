@@ -55,25 +55,26 @@ public class Expense implements Serializable {
 		}
 	}
 	
-	public String setExpenseType() {
+	public String getExpenseType() {
 		return expenseType;
 	}
 	
-	public double setCost() {
+	public double getCost() {
 		return cost;
 	}
 	
-	public String setGuest() {
+	public String getGuest() {
 		return guest;
 	}
 	
-	public Date setDate() {
+	public Date getDate() {
 		return date;
 	}
 	
-	public String setNote() {
+	public String getNote() {
 		return note;
 	}
+	
 	
 	
 }

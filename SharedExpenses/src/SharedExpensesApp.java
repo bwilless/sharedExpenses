@@ -15,6 +15,8 @@ import java.text.Format;
 import java.util.ArrayList;
 import java.util.Date;
 import javax.swing.*;
+import javax.swing.event.TableModelEvent;
+import javax.swing.event.TableModelListener;
 import javax.swing.table.*;
 
 public class SharedExpensesApp {
@@ -23,34 +25,60 @@ public class SharedExpensesApp {
 	
 	// GUI Objects
 	JFrame frame;
-	JPanel dataPanel, buttonPanel;
+	JPanel buttonPanel;
 	JSplitPane splitPane;
 	JButton addGuestButton, newTrackerButton, loadTrackerButton, addExpenseButton, saveTrackerButton;
 	JFrame addExpenseFrame, addGuestFrame; 
-	JTextField guestText, expenseTypeText, costText, dateText, noteText, addGuestText;
+	JTextField expenseTypeText, costText, dateText, noteText, addGuestText;
+	JComboBox guestText; 
 	JFormattedTextField dateInput;
 	JTable dataTable, expenseTable;
 	
 	// Constants
 	
-	private final static int DATA_TABLE_X_DIMENSION = 11;
-	private final static int DATA_TABLE_Y_DIMENSION = 10;
 	public final static int MAX_GUESTS = 10;
+	public final static int MAX_EXPENSE_TYPES = 10;
+
+	private final static int DATA_TABLE_X_DIMENSION = MAX_GUESTS + 2;
+	private final static int DATA_TABLE_Y_DIMENSION = MAX_EXPENSE_TYPES + 2;
+
+	// Define the starting cell for the expense typle list
+	private final static int EXPENSE_X_BASE = 0;
+	private final static int EXPENSE_Y_BASE = 0;
+		
+	// Define the starting cell for the expense totals
+	private final static int EXPENSE_TOTAL_X_BASE = 1;
+	private final static int EXPENSE_TOTAL_Y_BASE = 0;
 	
 	// Data Objects
 	File currentFile = null;
 	static ArrayList<Expense> expenseArray;
 	static ArrayList<String> guestArray;
 	static String[][] dataArray;
-		
+	static ArrayList<String> columnNames;
+	static ArrayList<String> typeNames;
+	
+	static enum ExpenseTableEntry {
+		item,
+		total,
+		guestn
+	}
+	
+	
 	// Main entry point
 	public static void main(String[] args) {
 		
+		// Create an instance of the app class
 		SharedExpensesApp expenseApp = new SharedExpensesApp();
+		
+		// Instantiate the data variables
 		expenseArray = new ArrayList<Expense>();
 		guestArray = new ArrayList<String>();
 		dataArray = new String[DATA_TABLE_X_DIMENSION][DATA_TABLE_Y_DIMENSION];
-		expenseApp.setupGUI();
+		columnNames = new ArrayList<String>();
+		typeNames = new ArrayList<String>();
+
+		expenseApp.setupGUI();		
 		expenseApp.go();
 	}
 	
@@ -118,8 +146,94 @@ public class SharedExpensesApp {
 		saveTrackerButton.addActionListener(new SaveTracker());
 		newTrackerButton.addActionListener(new NewTracker());
 		
+		setInitialColumnNames();
+		
 	}
 
+	public void setInitialColumnNames() {
+		
+		JTableHeader th = dataTable.getTableHeader();
+		TableColumnModel tcm = th.getColumnModel();
+		
+		TableColumn tc = tcm.getColumn(0);
+		tc.setHeaderValue("Expense Item");
+		
+		tc = tcm.getColumn(1);
+		tc.setHeaderValue("Expense Total");
+		
+		for(int i = 2; i < DATA_TABLE_X_DIMENSION; i++) {
+
+			tc = tcm.getColumn(i);
+			tc.setHeaderValue("--");
+			
+		}
+		
+		th.repaint();
+		
+	}
+	
+	public double calcExpensesTotal(String expenseType) {
+		
+		double total = 0.0;
+		
+		for(Expense currExpense: expenseArray) {
+			if(currExpense.getExpenseType() == expenseType) {
+				total += currExpense.getCost();
+			}
+		}
+		
+		return total;
+	}
+	
+	public double calcExpenseTotalByGuest(String expenseType, String guest) {
+		
+		double total = 0.0;
+		
+		for(Expense currExpense: expenseArray) {
+			if((currExpense.getExpenseType() == expenseType) && (currExpense.getGuest() == guest)) {
+				total += currExpense.getCost();
+			}
+		}
+				
+		return total;
+	}
+	
+	public double calcTotalOfAllExpensesByGuest(String guest) {
+		
+		double total = 0.0;
+		
+		for(Expense currExpense: expenseArray) {
+			if(currExpense.getGuest() == guest) {
+				total += currExpense.getCost();
+			}
+		}
+		
+		return total;
+	}
+	
+	public double calcTotalOfAllExpenses()  {
+		
+		double total = 0.0;
+		
+		for(Expense currExpense: expenseArray) {
+			total += currExpense.getCost();
+		}
+		
+		return total;
+	}
+	
+	
+	public double calcSharedExpenseTotal() {
+		
+		return calcTotalOfAllExpenses()/guestArray.size();
+
+	}
+	
+	public double calcBallanceByGuest(String guest) {
+		
+		return calcSharedExpenseTotal()- calcTotalOfAllExpensesByGuest(guest);
+	}
+	
 	// ActionListener inner-classes for button panel 		
 	
 	class AddGuest implements ActionListener {
@@ -155,6 +269,15 @@ public class SharedExpensesApp {
 
 		public void actionPerformed(ActionEvent e) {
 
+			// Make sure we have registered guests, if not tell the user and exit!
+			if(guestArray.isEmpty()) {
+				JOptionPane optionPane = new JOptionPane("You must add a guest(s) before adding an Expense!", JOptionPane.ERROR_MESSAGE);
+				JDialog dialog = optionPane.createDialog("Can not add Expense!");
+				dialog.setAlwaysOnTop(true);
+				dialog.setVisible(true);
+				return;
+			}
+			
 			addExpenseFrame = new JFrame("Add Expense");
 			
 			JPanel addExpensePanel = new JPanel();
@@ -165,7 +288,7 @@ public class SharedExpensesApp {
 			JLabel dateLabel = new JLabel("Date");
 			JLabel noteLabel = new JLabel("Note:");
 			
-			guestText = new JTextField(20);
+			guestText = new JComboBox(guestArray.toArray());
 			expenseTypeText = new JTextField(20);
 			costText = new JTextField(10);
 			
@@ -226,10 +349,45 @@ public class SharedExpensesApp {
 				expenseArray = ((ArrayList<Expense>) (inputStream.readObject()));
 				inputStream.close();
 				
+				// Run through the updated expenseArray and populate the guest and type name arrays 
+				for(int i = 0; i < expenseArray.size(); i++) {
+				
+					if(!guestArray.contains(expenseArray.get(i).getGuest())) {
+						
+						// Add the guest name to the guestArray and columnName array
+						guestArray.add(expenseArray.get(i).getGuest());
+						columnNames.add(expenseArray.get(i).getGuest());
+						
+						// Add the new guest column
+						TableColumn tc = new TableColumn();
+						tc.setHeaderValue(expenseArray.get(i).getGuest());
+						dataTable.addColumn(tc);
+					
+						// Add the Expense type to the table
+						if(!typeNames.contains(expenseArray.get(i).getExpenseType())) {
+							
+							System.out.println("Adding new expense type: " + expenseArray.get(i).getExpenseType() + " dataArray[" + (int)EXPENSE_X_BASE + "][" + (int)(EXPENSE_Y_BASE+typeNames.size()) + "]");
+							
+							typeNames.add(expenseArray.get(i).getExpenseType());
+							dataArray[(int)EXPENSE_X_BASE][(int)(EXPENSE_Y_BASE+typeNames.size())] = expenseArray.get(i).getExpenseType();
+//							dataTable.getModel().setValueAt(expenseArray.get(i).getExpenseType(), (int)EXPENSE_X_BASE, (int)(EXPENSE_Y_BASE+typeNames.size()));
+							
+						}
+						
+						
+						splitPane.updateUI();
+//						rebuildDataTable();
+					
+					}
+	
+					if(!typeNames.contains(expenseArray.get(i).getExpenseType())) {
+						typeNames.add(expenseArray.get(i).getExpenseType());
+					}
+				}
+				
 			} catch (Exception ex) {
 				ex.printStackTrace();
 			}
-
 			
 		}
 	}
@@ -288,10 +446,41 @@ public class SharedExpensesApp {
 
 		public void actionPerformed(ActionEvent e) {
 			
+			
+			// Validate the cost field
+			if((costText.getText().isEmpty()) || (Double.parseDouble(costText.getText()) <= 0)) {
+				
+				JOptionPane optionPane = new JOptionPane("Expense \"Cost\" must be greater than 0.");
+				JDialog dialog = optionPane.createDialog("Expense cost ERROR");
+				dialog.setAlwaysOnTop(true);
+				dialog.setVisible(true);
+				return;
+			}
+			
+			// Validate the expense type field
+			if(expenseTypeText.getText().isEmpty() || expenseTypeText.getText().matches("\\s*")) {
+				
+				JOptionPane optionPane = new JOptionPane("\"Expense Type\" can NOT be blank.");
+				JDialog dialog = optionPane.createDialog("Expense type ERROR");
+				dialog.setAlwaysOnTop(true);
+				dialog.setVisible(true);
+				return;
+			}
+			
 			Date dateField = (Date) (dateInput.getValue());
 			
-			Expense newExpense = new Expense(dateField, guestText.getText(), expenseTypeText.getText(), 
+			// Convert expense type to first letter CAPatilized and remaining text lower case
+			String expense = expenseTypeText.getText();
+			expense = expense.substring(0, 1).toUpperCase() + expense.substring(1).toLowerCase();
+			
+			Expense newExpense = new Expense(dateField, (String)guestText.getSelectedItem(), expense, 
 											 Double.parseDouble(costText.getText()), noteText.getText());
+			
+			splitPane.updateUI();
+			
+			if(!typeNames.contains(expense)) {
+				typeNames.add(expense);
+			}
 			
 			expenseArray.add(newExpense);
 			addExpenseFrame.setVisible(false);
@@ -302,7 +491,7 @@ public class SharedExpensesApp {
 
 		public void actionPerformed(ActionEvent e) {
 
-			if(guestArray.size() > MAX_GUESTS) {
+			if(guestArray.size() >= MAX_GUESTS) {
 
 				JOptionPane optionPane = new JOptionPane("Maximum number of guests reached.  Max = " + MAX_GUESTS, JOptionPane.ERROR_MESSAGE);
 				JDialog dialog = optionPane.createDialog("Guest not added");
@@ -311,26 +500,36 @@ public class SharedExpensesApp {
 		
 			}
 			
-			String newGuest =  addGuestText.getText();
+			String guest =  addGuestText.getText();
 
-			// Always store guest names in all lower case!
-			newGuest = newGuest.toLowerCase();
+			// Always store guest names in all lower case with first letter CAPatalized!
+			guest = guest.substring(0, 1).toUpperCase() + guest.substring(1).toLowerCase();
 			
-			if(!guestArray.contains(newGuest)) {
+			if(!guestArray.contains(guest)) {
 				
-				guestArray.add(newGuest);
+				// Update our data structures to include the new guest
+				guestArray.add(guest);
+				columnNames.add(guest);
+
+				// Disappear the input dialog box
+				addGuestFrame.setVisible(false);
+				
+				// Change the next header name to include our new guest
+				JTableHeader th = dataTable.getTableHeader();
+				TableColumnModel tcm = th.getColumnModel();
+				TableColumn tc = tcm.getColumn(guestArray.indexOf(guest)+2);
+				tc.setHeaderValue( guest );
+				th.repaint();
 				
 			
 			} else {
 				
-				JOptionPane optionPane = new JOptionPane("Guest " + newGuest + " already exists", JOptionPane.INFORMATION_MESSAGE);
+				JOptionPane optionPane = new JOptionPane("Guest " + guest + " already exists", JOptionPane.INFORMATION_MESSAGE);
 				JDialog dialog = optionPane.createDialog("Guest not added");
 				dialog.setAlwaysOnTop(true);
 				dialog.setVisible(true);
 									
 			}
-			
-			addGuestFrame.setVisible(false);
 		}
 	}
 	
@@ -346,15 +545,11 @@ public class SharedExpensesApp {
 				    					"Cost", 
 			    						"Note"};
 
-		
 		public int getColumnCount() {
-
 			return columnNames.length;
-		
 		}
 
 		public int getRowCount() {
-			
 			return expenseArray.size();
 		}
 
@@ -364,9 +559,8 @@ public class SharedExpensesApp {
 		
 		// All our fields are editable.  Implement this method and always return true.
 		public boolean isCellEditable(int row, int col) {
-			return true;
+			return false;
 		}
-		
 		
 		public Class getColumnClass(int c) {
 			return getValueAt(0, c).getClass();
@@ -375,54 +569,95 @@ public class SharedExpensesApp {
 	    public String getColumnName(int col) {
 	        return columnNames[col];
 	    }
-		
 	}
 
 
 	public class DataTableModel extends AbstractTableModel {
 		
-		private ArrayList<String> columnNames;
-		
-		// Provide a method to add a new column header.  This will take a new guest name when added.
-		public void addColumnText(String newColumnName) {
-			
-			columnNames.add(newColumnName);
-		}
-		
-		
 		public DataTableModel() {
-			
-			columnNames = new ArrayList<String>();
-			columnNames.add("Expense Item");
-			columnNames.add("Expense Total");
-			
-			dataArray[0][7] = "Total Expenses by Guests";
-			dataArray[0][8] = "Ballance of shared expense";
-			
+	
 		}
 		
 		public int getColumnCount() {
-		
-			return columnNames.size();
-		
+
+			return DATA_TABLE_X_DIMENSION;
 		}
 		
 		public int getRowCount() {
 		
+//			System.out.println("getRowCount(): " + DATA_TABLE_Y_DIMENSION);
 			return DATA_TABLE_Y_DIMENSION;
 		
 		}
-		
-		public Object getValueAt(int x, int y) {
-		
-			return dataArray[x][y];
+
+		public void setValueAt(int x, int y, String newData) {
+			
+			dataArray[x][y] = newData; 
+			
 		}
 		
-		public String getColumnName(int col) {
+		public Object getValueAt(int expenseType, int column) {
 		
-			return columnNames.get(col);
-		
+			String returnString = null;
+			double returnVal = 0.0;
+			
+//			return("[" + expenseType + "][" + column + "]");
+			
+			System.out.println("[" + expenseType + "][" + column + "]");
+			
+			System.out.println("expenseArray.size(): " + expenseArray.size());
+			
+			
+			if(expenseArray.size() > expenseType) {
+
+				System.out.println("processing!" + "[" + expenseType + "][" + column + "]");
+				
+				switch(column) {
+				case 0: 
+
+					System.out.println("printing expense type string: " + expenseArray.get(expenseType).getExpenseType());
+					return expenseArray.get(expenseType).getExpenseType();
+					
+				case 1: 
+
+					returnVal = calcExpensesTotal(expenseArray.get(expenseType).getExpenseType());
+					return (returnVal == 0.0) ? "-" : String.format("$%.2f", returnVal);
+					
+				default: 
+
+					// Decrement the column number by two to account for the offset into the table where guest columns start
+					column -= 2;
+					
+					if(guestArray.size() > column) {
+						return String.format("$%.2f", calcExpenseTotalByGuest(typeNames.get(expenseType), guestArray.get(column)));
+					} else {
+						return "-";
+					}
+					
+//					return (guestArray.size() > column-2) ? "-" : String.format("$%.2f", calcExpenseTotalByGuest(typeNames.get(expenseType), guestArray.get(column-1)));
+						
+				}
+			}
+
+			return null;
 		}
+		
+//		public String getColumnName(int col) {
+//		
+//			return columnNames.get(col);
+//		
+//		}
+		
+		// Provide a method to add a new column header.  This will take a new guest name when added.
+		public void addColumnText(String newColumnName) {
+			
+			columnNames.add(2, newColumnName);
+			for (int i = 0; i < columnNames.size(); i++) {
+				System.out.println(columnNames.get(i));
+			}
+			
+		}
+
 		
 	}
 }
@@ -430,7 +665,12 @@ public class SharedExpensesApp {
 /*
  * TODO List
  * 
- * 
+ *   Add check for max expense types
+ *   
+ *   Implement table change update for expense table, change fields to editable
+ *   
+ *  			
+ *   
  * 
  * 
  * 

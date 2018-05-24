@@ -146,9 +146,17 @@ public class SharedExpensesApp {
 		saveTrackerButton.addActionListener(new SaveTracker());
 		newTrackerButton.addActionListener(new NewTracker());
 		
+//		// Added for easy debug!
+//		columnNames.add("Fuel");
+//		columnNames.add("Food");
+//		guestArray.add("Brian");
+//		expenseArray.add(new Expense(new Date(), "Brian", "Food", 100.00, "Short note"));
+//		expenseArray.add(new Expense(new Date(), "Brian", "Fuel", 50.00, "Short note"));
+		
 		setInitialColumnNames();
 		
 	}
+	
 
 	public void setInitialColumnNames() {
 		
@@ -177,7 +185,9 @@ public class SharedExpensesApp {
 		double total = 0.0;
 		
 		for(Expense currExpense: expenseArray) {
-			if(currExpense.getExpenseType() == expenseType) {
+//			System.out.println("1");
+			if(currExpense.getExpenseType().equals(expenseType)) {
+				System.out.println("Adding: " + currExpense.getCost());
 				total += currExpense.getCost();
 			}
 		}
@@ -190,7 +200,8 @@ public class SharedExpensesApp {
 		double total = 0.0;
 		
 		for(Expense currExpense: expenseArray) {
-			if((currExpense.getExpenseType() == expenseType) && (currExpense.getGuest() == guest)) {
+			if((currExpense.getExpenseType().equals((expenseType)) && (currExpense.getGuest().equals(guest)))) {
+//				System.out.println("Adding: " + expenseArray.get(i).getCost());
 				total += currExpense.getCost();
 			}
 		}
@@ -203,7 +214,7 @@ public class SharedExpensesApp {
 		double total = 0.0;
 		
 		for(Expense currExpense: expenseArray) {
-			if(currExpense.getGuest() == guest) {
+			if(currExpense.getGuest().equals(guest)) {
 				total += currExpense.getCost();
 			}
 		}
@@ -224,9 +235,13 @@ public class SharedExpensesApp {
 	
 	
 	public double calcSharedExpenseTotal() {
-		
-		return calcTotalOfAllExpenses()/guestArray.size();
 
+		if(guestArray.isEmpty()) {
+			return 0.0;
+		} else {
+		return calcTotalOfAllExpenses()/guestArray.size();
+		}
+		
 	}
 	
 	public double calcBallanceByGuest(String guest) {
@@ -571,7 +586,6 @@ public class SharedExpensesApp {
 	    }
 	}
 
-
 	public class DataTableModel extends AbstractTableModel {
 		
 		public DataTableModel() {
@@ -585,7 +599,6 @@ public class SharedExpensesApp {
 		
 		public int getRowCount() {
 		
-//			System.out.println("getRowCount(): " + DATA_TABLE_Y_DIMENSION);
 			return DATA_TABLE_Y_DIMENSION;
 		
 		}
@@ -603,43 +616,90 @@ public class SharedExpensesApp {
 			
 //			return("[" + expenseType + "][" + column + "]");
 			
-			System.out.println("[" + expenseType + "][" + column + "]");
-			
-			System.out.println("expenseArray.size(): " + expenseArray.size());
+//			System.out.println("[" + expenseType + "][" + column + "]");
 			
 			
-			if(expenseArray.size() > expenseType) {
+			if(typeNames.size() > expenseType) {
 
-				System.out.println("processing!" + "[" + expenseType + "][" + column + "]");
-				
+//				System.out.print("/nProcessing colums 0 and 1/n");
+//				System.out.print("processing!" + "[" + expenseType + "][" + column + "]: ");
+//				System.out.print("typeNames.size(): " + typeNames.size() + ": ");
+//				System.out.print("guestArray.size(): " + guestArray.size() + ": ");
+//				System.out.print("expenseArray.size(): " + expenseArray.size() + ": \n");
+			
+			
 				switch(column) {
 				case 0: 
 
-					System.out.println("printing expense type string: " + expenseArray.get(expenseType).getExpenseType());
-					return expenseArray.get(expenseType).getExpenseType();
-					
+						return typeNames.get(expenseType);
+
 				case 1: 
 
-					returnVal = calcExpensesTotal(expenseArray.get(expenseType).getExpenseType());
-					return (returnVal == 0.0) ? "-" : String.format("$%.2f", returnVal);
-					
+						returnVal = calcExpensesTotal(typeNames.get(expenseType));
+						return (returnVal == 0.0) ? "-" : String.format("$%.2f", returnVal);
+				
 				default: 
 
 					// Decrement the column number by two to account for the offset into the table where guest columns start
 					column -= 2;
-					
+
 					if(guestArray.size() > column) {
 						return String.format("$%.2f", calcExpenseTotalByGuest(typeNames.get(expenseType), guestArray.get(column)));
 					} else {
-						return "-";
+						return "      --";
 					}
+				}
+
+			} else {
+			
+//				System.out.print("/n/n/nProcessing colums 2+");
+//				System.out.print("processing!" + "[" + expenseType + "][" + column + "]: ");
+//				System.out.print("typeNames.size(): " + typeNames.size() + ": ");
+//				System.out.print("guestArray.size(): " + guestArray.size() + ": ");
+//				System.out.print("expenseArray.size(): " + expenseArray.size() + ": \n");
+				
+				switch(column) {
+				case 0: 
+	
+					if(expenseType == 10){
+						return "Total Expenses by Guest";
+					} else if (expenseType == 11) {
+						return "Ballance of Shared Expense";
+					} else {
+						return "";
+					}
+				case 1: 
+	
+					if(expenseType == 10){
+						returnVal = calcTotalOfAllExpenses();
+						return String.format("$%.2f", returnVal);
+					} else if (expenseType == 11) {
+						returnVal = calcSharedExpenseTotal();
+						return String.format("$%.2f", returnVal);
+					} else {
+						return ""; 
+					}
+				
+				default: 
+	
+					// Decrement the column number by two to account for the offset into the table where guest columns start
+					column -= 2;					
 					
-//					return (guestArray.size() > column-2) ? "-" : String.format("$%.2f", calcExpenseTotalByGuest(typeNames.get(expenseType), guestArray.get(column-1)));
-						
+					if(guestArray.size() > column) {
+						if(expenseType == 10){
+							returnVal = calcTotalOfAllExpensesByGuest(guestArray.get(column));
+							return String.format("$%.2f", returnVal);
+						} else if (expenseType == 11) {
+							returnVal = calcBallanceByGuest(guestArray.get(column));
+							return String.format("$%.2f", returnVal);
+						} else {
+							return "";
+						}
+					} else {
+						return "      --";
+					}
 				}
 			}
-
-			return null;
 		}
 		
 //		public String getColumnName(int col) {

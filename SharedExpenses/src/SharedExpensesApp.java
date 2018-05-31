@@ -1,6 +1,7 @@
 
 
 import java.awt.BorderLayout;
+import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.GridLayout;
 import java.awt.event.ActionEvent;
@@ -35,14 +36,13 @@ public class SharedExpensesApp {
 	JTable dataTable, expenseTable;
 	
 	// Constants
-	
 	public final static int MAX_GUESTS = 10;
 	public final static int MAX_EXPENSE_TYPES = 10;
 
 	private final static int DATA_TABLE_X_DIMENSION = MAX_GUESTS + 2;
 	private final static int DATA_TABLE_Y_DIMENSION = MAX_EXPENSE_TYPES + 2;
 
-	// Define the starting cell for the expense typle list
+	// Define the starting cell for the expense table list
 	private final static int EXPENSE_X_BASE = 0;
 	private final static int EXPENSE_Y_BASE = 0;
 		
@@ -64,20 +64,31 @@ public class SharedExpensesApp {
 		guestn
 	}
 	
-	
 	// Main entry point
 	public static void main(String[] args) {
 		
-		// Create an instance of the app class
+		// Create an instance of the application class
 		SharedExpensesApp expenseApp = new SharedExpensesApp();
 		
 		// Instantiate the data variables
+
+		// Create the ArrayList to hold all the expenses
 		expenseArray = new ArrayList<Expense>();
+		
+		// The guest array contains non-duplicate guest names.  This list is also used to
+		// determine which column in the table data to display guest specific data
 		guestArray = new ArrayList<String>();
+		
+		// The data array is used for the main data table in the gui.
 		dataArray = new String[DATA_TABLE_X_DIMENSION][DATA_TABLE_Y_DIMENSION];
+		
+		// columNames is used to hold the column names for the Expense table.
 		columnNames = new ArrayList<String>();
+		
+		// The typeNames array contains non-duplicate strings representing the expense types, i.e., "Food", "Fuel",  . . . 
 		typeNames = new ArrayList<String>();
 
+		// Let's get the party started!
 		expenseApp.setupGUI();		
 		expenseApp.go();
 	}
@@ -131,7 +142,7 @@ public class SharedExpensesApp {
 		
 		// Set frame characteristics
 		frame.getContentPane().add(BorderLayout.SOUTH, buttonPanel);
-		frame.setSize(650, 600);
+		frame.setSize(800, 600);
 		frame.setVisible(true);
 
 	}
@@ -146,33 +157,30 @@ public class SharedExpensesApp {
 		saveTrackerButton.addActionListener(new SaveTracker());
 		newTrackerButton.addActionListener(new NewTracker());
 		
-//		// Added for easy debug!
-//		columnNames.add("Fuel");
-//		columnNames.add("Food");
-//		guestArray.add("Brian");
-//		expenseArray.add(new Expense(new Date(), "Brian", "Food", 100.00, "Short note"));
-//		expenseArray.add(new Expense(new Date(), "Brian", "Fuel", 50.00, "Short note"));
-		
+		// Setup the column names for the expense panel
 		setInitialColumnNames();
+		initColumnSizes(expenseTable);
+		initColumnSizes(dataTable);
 		
 	}
-	
 
+	// This method initializes the main data table headers with static text and "--" as place holders 
+	// where guest names will be placed later.
 	public void setInitialColumnNames() {
 		
 		JTableHeader th = dataTable.getTableHeader();
 		TableColumnModel tcm = th.getColumnModel();
 		
 		TableColumn tc = tcm.getColumn(0);
-		tc.setHeaderValue("Expense Item");
+		tc.setHeaderValue("Expense Item:  ");
 		
 		tc = tcm.getColumn(1);
-		tc.setHeaderValue("Expense Total");
+		tc.setHeaderValue("Expense Total:  ");
 		
 		for(int i = 2; i < DATA_TABLE_X_DIMENSION; i++) {
 
 			tc = tcm.getColumn(i);
-			tc.setHeaderValue("--");
+			tc.setHeaderValue("    --    ");
 			
 		}
 		
@@ -180,28 +188,27 @@ public class SharedExpensesApp {
 		
 	}
 	
+	// This method will sum all expenses for the given expense type
 	public double calcExpensesTotal(String expenseType) {
 		
 		double total = 0.0;
 		
 		for(Expense currExpense: expenseArray) {
-//			System.out.println("1");
 			if(currExpense.getExpenseType().equals(expenseType)) {
-				System.out.println("Adding: " + currExpense.getCost());
 				total += currExpense.getCost();
 			}
 		}
 		
 		return total;
 	}
-	
+
+	// This method will sum all expenses of the given expense type for the given guest
 	public double calcExpenseTotalByGuest(String expenseType, String guest) {
 		
 		double total = 0.0;
 		
 		for(Expense currExpense: expenseArray) {
 			if((currExpense.getExpenseType().equals((expenseType)) && (currExpense.getGuest().equals(guest)))) {
-//				System.out.println("Adding: " + expenseArray.get(i).getCost());
 				total += currExpense.getCost();
 			}
 		}
@@ -209,6 +216,7 @@ public class SharedExpensesApp {
 		return total;
 	}
 	
+	// This method will sum all expenses for the given guest regardless of the expense type.  "Jim put out $234.00"
 	public double calcTotalOfAllExpensesByGuest(String guest) {
 		
 		double total = 0.0;
@@ -222,6 +230,7 @@ public class SharedExpensesApp {
 		return total;
 	}
 	
+	// This method sums all expenses.  "This trip cost the group $524.33"
 	public double calcTotalOfAllExpenses()  {
 		
 		double total = 0.0;
@@ -233,7 +242,7 @@ public class SharedExpensesApp {
 		return total;
 	}
 	
-	
+	// This method returns the total for the entire trip divided by the number of guests.   
 	public double calcSharedExpenseTotal() {
 
 		if(guestArray.isEmpty()) {
@@ -244,22 +253,70 @@ public class SharedExpensesApp {
 		
 	}
 	
+	// This method returns how much each guest needs to receive/pay to be even for the trip.
 	public double calcBallanceByGuest(String guest) {
 		
 		return calcSharedExpenseTotal()- calcTotalOfAllExpensesByGuest(guest);
 	}
 	
-	// ActionListener inner-classes for button panel 		
+	/*
+     * This method picks good column sizes.
+     * If all column heads are wider than the column's cells'
+     * contents, then you can just use column.sizeWidthToFit().
+     */
+    private void initColumnSizes(JTable table) {
+
+    	table.setAutoResizeMode( JTable.AUTO_RESIZE_OFF );
+    	 
+    	for (int column = 0; column < table.getColumnCount(); column++)
+    	{
+
+    		System.out.println("Processing column: " + column );
+    		
+    		TableColumn tableColumn = table.getColumnModel().getColumn(column);
+    	    int preferredWidth = tableColumn.getMinWidth();
+    	    int maxWidth = tableColumn.getMaxWidth();
+    	    int headerWidth = tableColumn.getHeaderValue().toString().length();
+    	 
+    	    
+    	    System.out.println("headerWidth: " + headerWidth + " maxWidth: " + maxWidth);
+    	    
+    	    if(headerWidth > maxWidth) {
+    	    	maxWidth = headerWidth;
+    	    }
+    	    
+    	    for (int row = 0; row < table.getRowCount(); row++)
+    	    {
+    	    
+    	    	TableCellRenderer cellRenderer = table.getCellRenderer(row, column);
+    	        Component c = table.prepareRenderer(cellRenderer, row, column);
+    	        int width = c.getPreferredSize().width + 10; //table.getIntercellSpacing().width;
+    	        preferredWidth = Math.max(preferredWidth, width);
+    	 
+    	        System.out.println("row: " + row + " column: " + column + " Width: " + width + " preferredWidth: " + preferredWidth);
+    	        
+    	        
+    	        //  We've exceeded the maximum width, no need to check other rows
+    	 
+    	        if (preferredWidth >= maxWidth)
+    	        {
+    	            preferredWidth = maxWidth;
+    	            break;
+    	        }
+    	    }
+    	 
+    	    tableColumn.setPreferredWidth( preferredWidth );
+    	}
+    }	
 	
+	
+	// ActionListener inner-classes for button panel 		
 	class AddGuest implements ActionListener {
 
 		public void actionPerformed(ActionEvent e) {
 			
-			
 			addGuestFrame = new JFrame("Add Guest");
-			
 			JPanel addGuestPanel = new JPanel();
-
 			JLabel guestLabel = new JLabel("New Guest, Enter Name");
 			
 			addGuestText = new JTextField(20);
@@ -276,7 +333,6 @@ public class SharedExpensesApp {
 			addGuestFrame.setVisible(true);
 				
 			 okGuestButton.addActionListener(new AddGuestOK());			
-			
 		}
 	}
 
@@ -347,12 +403,18 @@ public class SharedExpensesApp {
 			
 			JFileChooser fileChooser = new JFileChooser();
 			File newFile = null;
+			int returnVal = 0;
 			
 			while (newFile == null) {
 				
 				fileChooser.setDialogTitle("Please specify the file open");
-				fileChooser.showOpenDialog(frame);
-				newFile = fileChooser.getSelectedFile();
+				returnVal = fileChooser.showOpenDialog(frame);
+				if(returnVal == JFileChooser.APPROVE_OPTION) {
+					newFile = fileChooser.getSelectedFile();
+				} else {
+//					fileChooser.setVisible(false);
+				}
+					
 			}			
 			
 			currentFile = newFile;
@@ -373,25 +435,25 @@ public class SharedExpensesApp {
 						guestArray.add(expenseArray.get(i).getGuest());
 						columnNames.add(expenseArray.get(i).getGuest());
 						
-						// Add the new guest column
-						TableColumn tc = new TableColumn();
+						// Change the next header name to include our new guest
+						JTableHeader th = dataTable.getTableHeader();
+						TableColumnModel tcm = th.getColumnModel();
+						TableColumn tc = tcm.getColumn(guestArray.indexOf(expenseArray.get(i).getGuest())+2);
 						tc.setHeaderValue(expenseArray.get(i).getGuest());
-						dataTable.addColumn(tc);
+						th.repaint();
 					
 						// Add the Expense type to the table
 						if(!typeNames.contains(expenseArray.get(i).getExpenseType())) {
 							
-							System.out.println("Adding new expense type: " + expenseArray.get(i).getExpenseType() + " dataArray[" + (int)EXPENSE_X_BASE + "][" + (int)(EXPENSE_Y_BASE+typeNames.size()) + "]");
-							
 							typeNames.add(expenseArray.get(i).getExpenseType());
 							dataArray[(int)EXPENSE_X_BASE][(int)(EXPENSE_Y_BASE+typeNames.size())] = expenseArray.get(i).getExpenseType();
-//							dataTable.getModel().setValueAt(expenseArray.get(i).getExpenseType(), (int)EXPENSE_X_BASE, (int)(EXPENSE_Y_BASE+typeNames.size()));
 							
 						}
 						
-						
+						initColumnSizes(expenseTable);
+						initColumnSizes(dataTable);
+
 						splitPane.updateUI();
-//						rebuildDataTable();
 					
 					}
 	
@@ -535,7 +597,6 @@ public class SharedExpensesApp {
 				TableColumn tc = tcm.getColumn(guestArray.indexOf(guest)+2);
 				tc.setHeaderValue( guest );
 				th.repaint();
-				
 			
 			} else {
 				
@@ -551,6 +612,8 @@ public class SharedExpensesApp {
 	// Table Model inner-classes
 	
 	public class ExpenseTableModel extends AbstractTableModel {
+
+		public Object[] longValues;
 
 		private static final long serialVersionUID = -8404802938088513836L;
 		
@@ -614,20 +677,8 @@ public class SharedExpensesApp {
 			String returnString = null;
 			double returnVal = 0.0;
 			
-//			return("[" + expenseType + "][" + column + "]");
-			
-//			System.out.println("[" + expenseType + "][" + column + "]");
-			
-			
 			if(typeNames.size() > expenseType) {
 
-//				System.out.print("/nProcessing colums 0 and 1/n");
-//				System.out.print("processing!" + "[" + expenseType + "][" + column + "]: ");
-//				System.out.print("typeNames.size(): " + typeNames.size() + ": ");
-//				System.out.print("guestArray.size(): " + guestArray.size() + ": ");
-//				System.out.print("expenseArray.size(): " + expenseArray.size() + ": \n");
-			
-			
 				switch(column) {
 				case 0: 
 
@@ -652,12 +703,6 @@ public class SharedExpensesApp {
 
 			} else {
 			
-//				System.out.print("/n/n/nProcessing colums 2+");
-//				System.out.print("processing!" + "[" + expenseType + "][" + column + "]: ");
-//				System.out.print("typeNames.size(): " + typeNames.size() + ": ");
-//				System.out.print("guestArray.size(): " + guestArray.size() + ": ");
-//				System.out.print("expenseArray.size(): " + expenseArray.size() + ": \n");
-				
 				switch(column) {
 				case 0: 
 	
@@ -702,21 +747,15 @@ public class SharedExpensesApp {
 			}
 		}
 		
-//		public String getColumnName(int col) {
-//		
-//			return columnNames.get(col);
-//		
-//		}
-		
 		// Provide a method to add a new column header.  This will take a new guest name when added.
-		public void addColumnText(String newColumnName) {
-			
-			columnNames.add(2, newColumnName);
-			for (int i = 0; i < columnNames.size(); i++) {
-				System.out.println(columnNames.get(i));
-			}
-			
-		}
+//		public void addColumnText(String newColumnName) {
+//			
+//			columnNames.add(2, newColumnName);
+//			for (int i = 0; i < columnNames.size(); i++) {
+//				System.out.println(columnNames.get(i));
+//			}
+//			
+//		}
 
 		
 	}
@@ -725,10 +764,9 @@ public class SharedExpensesApp {
 /*
  * TODO List
  * 
- *   Add check for max expense types
- *   
  *   Implement table change update for expense table, change fields to editable
  *   
+ *   Save file filechooser can not be canceled   
  *  			
  *   
  * 
